@@ -1,79 +1,98 @@
-This README provides setup instructions for using Vagrant to provision a local Kubernetes cluster. The configuration file (Vagrantfile) sets up a 3-node cluster with 1 master node and 2 worker nodes, allowing you to run a Kubernetes cluster entirely on your local machine.
+Vagrant Kubernetes Cluster Setup
+This repository provides a Vagrant script for setting up a simple multi-node Kubernetes cluster using VirtualBox as the provider. The setup includes one master node and two worker nodes, all running Ubuntu 18.04 (Bionic). The Kubernetes components (kubeadm, kubelet, kubectl) and Docker are installed and configured on all nodes.
 
 Prerequisites
-Before running this setup, make sure you have the following installed on your machine:
+Before running this script, ensure you have the following software installed on your system:
 
-Vagrant - For managing virtual environments
-VirtualBox - The VM provider for creating virtual machines
-Setup Overview
-The Vagrantfile provisions a Kubernetes cluster with:
+Vagrant (https://www.vagrantup.com/)
+VirtualBox (https://www.virtualbox.org/)
+Git (optional, for cloning the repository)
+System Requirements
+At least 4 GB of available RAM for the virtual machines.
+A system with virtualization support (Intel VT-x or AMD-V) enabled in BIOS.
+Configuration Overview
+The Vagrant script sets up the following virtual machines:
 
-1 master node (master)
-2 worker nodes (worker1 and worker2)
-Flannel as the network plugin
-The nodes are provisioned with Ubuntu 18.04 and use kubeadm to set up and initialize the Kubernetes cluster.
-
-Steps to Set Up the Cluster
-Clone or Download the Repository:
-Clone or download the project files to your local machine.
-
-Start the Cluster: Open a terminal, navigate to the directory with the Vagrantfile, and run:
-
-bash:
+k8s-master: The Kubernetes master node, responsible for the control plane.
+k8s-node1: The first Kubernetes worker node.
+k8s-node2: The second Kubernetes worker node.
+Virtual Machine Configuration
+Base Box: ubuntu/bionic64 (Ubuntu 18.04)
+Memory: 2048 MB per VM
+CPUs: 2 CPUs per VM
+Networking:
+Private network IPs:
+k8s-master: 192.168.56.10
+k8s-node1: 192.168.56.11
+k8s-node2: 192.168.56.12
+Public network interface bridged to Wi-Fi (en0).
+Setup Instructions
+1. Clone the Repository
+ bash
 Copy code
+git clone <repository_url>
+cd <repository_directory>
+2. Start the Vagrant Environment
+Run the following command to bring up the VMs:
+
+ bash
 vagrant up
-This command will:
+Vagrant will automatically download the base Ubuntu box, create virtual machines, and execute provisioning scripts to set up Docker and Kubernetes on each node.
 
-Create and configure three virtual machines.
-Set up Kubernetes on each node.
-Initialize a Kubernetes master node on master.
-Join the worker nodes (worker1 and worker2) to the cluster.
-Access the Master Node: SSH into the master node to start interacting with the Kubernetes cluster:
+3. Accessing the VMs
+To SSH into the master node (k8s-master):
 
-bash:
-Copy code
-vagrant ssh master
-Verify Cluster Status: Once inside the master node, you can check the cluster status by running:
+ bash
 
-bash:
-Copy code
-kubectl get nodes
-kubectl get pods -A
-You should see all three nodes listed as "Ready" and Flannel pods running as the network plugin.
+vagrant ssh k8s-master
+To SSH into the first worker node (k8s-node1):
 
-Key Files and Configuration
-Vagrantfile
-The Vagrantfile:
+ bash
 
-Defines three virtual machines: master, worker1, and worker2.
-Installs kubeadm, kubelet, and kubectl on each node.
-Initializes the Kubernetes master node with kubeadm.
-Sets up Flannel as the pod network plugin.
-Configures worker nodes to join the cluster automatically.
-Cluster Networking
-The cluster uses a private network (private_network) for node communication. This allows the virtual machines to communicate internally without being exposed to external networks. You can customize the networking options in the Vagrantfile if needed.
+vagrant ssh k8s-node1
+To SSH into the second worker node (k8s-node2):
 
-Customizing the Setup
-Feel free to customize the Vagrantfile to adjust:
+ bash
+ 
+vagrant ssh k8s-node2
+4. Kubernetes Initialization
+Once the nodes are up and running, the master node will automatically initialize the Kubernetes cluster using kubeadm. The following steps are included in the provisioning script:
 
-Number of nodes
-VM resources (memory, CPU)
-Network plugins (e.g., switch from Flannel to Calico)
-Stopping and Destroying the Cluster
-To stop the cluster without destroying it:
+Kubernetes components (kubelet, kubeadm, kubectl) are installed on all nodes.
+Docker is installed and configured.
+The swap is disabled on all nodes.
+Flannel, a network plugin for Kubernetes, is installed to enable pod-to-pod communication.
+After kubeadm init completes on the master node, you will see a kubeadm join command in the output, which you can use to join the worker nodes to the cluster.
 
-bash:
-Copy code
-vagrant halt
-To destroy the cluster completely:
+5. Joining Worker Nodes to the Cluster
+Run the kubeadm join command provided by the master node on each worker node (k8s-node1 and k8s-node2) to join them to the cluster.
 
-bash:
-Copy code
-vagrant destroy -f
+6. Accessing the Kubernetes Cluster
+After the nodes are joined to the cluster, you can use kubectl to manage the cluster. To use kubectl from the master node, run the following:
+
+ bash
+ 
+export KUBEVIRT_VERSION=$(kubectl version | base64 | tr -d '\n')
+mkdir -p $HOME/.kube
+sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
+sudo chown $(id -u):$(id -g) $HOME/.kube/config
+You can then verify the cluster status:
+
+ bash
+kubectl get nodes or kubectl get po -n kube-system
+This should show the master and worker nodes as Ready.
+
 Troubleshooting
-If you encounter issues with the setup, make sure VirtualBox and Vagrant are up-to-date.
-Check for any errors in the provisioning script output during vagrant up.
-If worker nodes don’t join automatically, you can manually SSH into each worker node and run the join.sh script saved in /vagrant/join.sh on the master node.
+If any of the VMs fail to start, run vagrant destroy followed by vagrant up to recreate the environment.
+Ensure your system has sufficient resources (RAM and CPU) for running multiple VMs.
+If you experience networking issues, ensure that VirtualBox's network interface settings are correctly configured.
+Unused Features or Considerations
+This setup uses Flannel as the network plugin, but you can replace it with other CNI (Container Network Interface) plugins if required.
+This script uses Ubuntu 18.04 (Bionic) as the base image. It can be adapted for other Ubuntu versions or different Linux distributions.
+License
+This project is licensed under the MIT License - see the LICENSE file for details.
+
+
 
 Flannel Installation
 To install Flannel as the network plugin in a Kubernetes cluster, follow these steps. Flannel is a popular network overlay for Kubernetes that enables communication between pods across nodes.
@@ -84,36 +103,36 @@ kubectl configured on the master node (or locally) to manage the cluster.
 Initialize the Kubernetes Cluster (if not already done): If you haven't already initialized the Kubernetes cluster, you can do so with kubeadm. For example:
 
 bash:
-Copy code
+
 kubeadm init --pod-network-cidr=10.244.0.0/16
 Note: The --pod-network-cidr=10.244.0.0/16 flag is required for Flannel, as Flannel expects this CIDR. Adjustments to this CIDR should be made only if you’re certain your setup needs it.
 
 Apply the Flannel Network Manifest: Run the following command on the master node to deploy Flannel using the official Flannel YAML manifest:
 
 bash:
-Copy code
+
 kubectl apply -f https://raw.githubusercontent.com/coreos/flannel/master/Documentation/kube-flannel.yml
 Verify the Installation: After applying the manifest, check that the Flannel pods are up and running. This may take a few moments.
 
 bash:
-Copy code
+
 kubectl get pods -n kube-system
 You should see kube-flannel-ds pods running on each node in the cluster.
 
 Allow Workers to Communicate (if applicable): If you initialized the cluster with kubeadm init, make sure you have joined your worker nodes to the cluster. The command to join worker nodes will typically look like:
 
 bash:
-Copy code
+
 kubeadm join <master-node-ip>:<port> --token <token> --discovery-token-ca-cert-hash sha256:<hash>
 If you forgot or lost the join command, you can regenerate it on the master node:
 
 bash:
-Copy code
+
 kubeadm token create --print-join-command
 Confirm Pod-to-Pod Communication: Deploy a sample application to confirm pod networking is working. You can create a simple nginx deployment and check connectivity between pods:
 
 bash:
-Copy code
+
 kubectl create deployment nginx --image=nginx
 kubectl get pods -o wide
 If Flannel is configured correctly, pods should be able to communicate across nodes within the cluster.

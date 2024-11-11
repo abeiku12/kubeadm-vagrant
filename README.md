@@ -72,10 +72,16 @@ After the nodes are joined to the cluster, you can use kubectl to manage the clu
 
  bash
  
-export KUBEVIRT_VERSION=$(kubectl version | base64 | tr -d '\n')
+
 mkdir -p $HOME/.kube
 sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
 sudo chown $(id -u):$(id -g) $HOME/.kube/config
+
+Alternatively, if you are the root user, you can run:
+
+  export KUBECONFIG=/etc/kubernetes/admin.conf
+
+
 You can then verify the cluster status:
 
  bash
